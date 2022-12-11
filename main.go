@@ -122,7 +122,11 @@ func main() {
 	}
 
 	if *fHead {
-		markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Hash().String()[:4]))
+		if head.Name().IsBranch() && *fBranch {
+			markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Name().Short()))
+		} else {
+			markdown.WriteString(fmt.Sprintf("HEAD{{%v}}-->%v\n", head.Name().Short(), head.Hash().String()[:4]))
+		}
 	}
 }
 
