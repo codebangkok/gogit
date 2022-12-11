@@ -52,22 +52,16 @@ func main() {
 	}
 	defer commiter.Close()
 
-	_, err = commiter.Next()
-	if err != nil {
-		markdown.WriteString("empty((empty))\n")
-		return
-	}
-
 	commiter.ForEach(func(c *object.Commit) error {
 
 		commitHash := c.Hash.String()[:4]
-
 		// Tree and Blob
 		if *fTree {
 			treeHash := c.TreeHash.String()[:4]
 			markdown.WriteString(fmt.Sprintf("%v(((%v)))-->%v{%v}\n", commitHash, commitHash, treeHash, treeHash))
 			tree, err := c.Tree()
 			if err != nil {
+				log.Fatal(err)
 				return err
 			}
 			if *fBlob {
@@ -108,11 +102,13 @@ func main() {
 		})
 	}
 
+	head, err := repo.Head()
+	if err != nil {
+		markdown.WriteString("empty((empty))\n")
+		return
+	}
+
 	if *fHead {
-		head, err := repo.Head()
-		if err != nil {
-			return
-		}
 		markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Hash().String()[:4]))
 	}
 }
