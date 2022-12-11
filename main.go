@@ -19,6 +19,7 @@ func main() {
 	var fBranch = flag.Bool("branch", false, "show branch")
 	var fHead = flag.Bool("head", false, "show head")
 	var fHistory = flag.Bool("history", false, "show commit history")
+	var fContent = flag.Bool("content", false, "show blob content")
 	flag.Parse()
 
 	//==================================
@@ -65,17 +66,22 @@ func main() {
 			markdown.WriteString(fmt.Sprintf("%v(((%v)))-->%v{%v}\n", commitHash, commitHash, treeHash, treeHash))
 
 			if *fBlob {
-				return listTreeEntries(tree, markdown)
+				return listTreeEntries(tree, markdown, fContent)
 			}
 		} else {
 			if *fBlob {
 				tree.Files().ForEach(func(f *object.File) error {
 					blobHash := f.Hash.String()[:4]
-					content, err := f.Contents()
-					if err != nil {
-						return err
+
+					if *fContent {
+						content, err := f.Contents()
+						if err != nil {
+							return err
+						}
+						markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, content))
+					} else {
+						markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v]\n", commitHash, commitHash, f.Name, blobHash, blobHash))
 					}
-					markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, content))
 					return nil
 				})
 			} else {
@@ -130,7 +136,7 @@ func main() {
 	}
 }
 
-func listTreeEntries(tree *object.Tree, markdown *os.File) error {
+func listTreeEntries(tree *object.Tree, markdown *os.File, fContent *bool) error {
 	treeHash := tree.Hash.String()[:4]
 	for _, entry := range tree.Entries {
 		if entry.Mode.IsFile() {
@@ -139,11 +145,16 @@ func listTreeEntries(tree *object.Tree, markdown *os.File) error {
 				return err
 			}
 			blobHash := file.Hash.String()[:4]
-			content, err := file.Contents()
-			if err != nil {
-				return err
+
+			if *fContent {
+				content, err := file.Contents()
+				if err != nil {
+					return err
+				}
+				markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v %v]\n", treeHash, file.Name, blobHash, blobHash, content))
+			} else {
+				markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v]\n", treeHash, file.Name, blobHash, blobHash))
 			}
-			markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v %v]\n", treeHash, file.Name, blobHash, blobHash, content))
 		} else {
 			subTree, err := tree.Tree(entry.Name)
 			if err != nil {
@@ -152,7 +163,7 @@ func listTreeEntries(tree *object.Tree, markdown *os.File) error {
 			treeHash := tree.Hash.String()[:4]
 			subTreeHash := subTree.Hash.String()[:4]
 			markdown.WriteString(fmt.Sprintf("%v{%v}--%v-->%v{%v}\n", treeHash, treeHash, entry.Name, subTreeHash, subTreeHash))
-			listTreeEntries(subTree, markdown)
+			listTreeEntries(subTree, markdown, fContent)
 		}
 	}
 	return nil
