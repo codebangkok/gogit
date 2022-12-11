@@ -52,7 +52,14 @@ func main() {
 	}
 	defer commiter.Close()
 
+	_, err = commiter.Next()
+	if err != nil {
+		markdown.WriteString("empty((empty))\n")
+		return
+	}
+
 	commiter.ForEach(func(c *object.Commit) error {
+
 		commitHash := c.Hash.String()[:4]
 
 		// Tree and Blob
