@@ -6,13 +6,13 @@ import (
 	"log"
 	"os"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 func main() {
-
 	var fDir = flag.String("dir", ".", "git directory")
 	var fTree = flag.Bool("tree", false, "show tree")
 	var fBlob = flag.Bool("blob", false, "show blob")
@@ -20,7 +20,65 @@ func main() {
 	var fHead = flag.Bool("head", false, "show head")
 	var fHistory = flag.Bool("history", false, "show commit history")
 	var fContent = flag.Bool("content", false, "show blob content")
+	var fWatch = flag.Bool("watch", false, "watch commit change")
 	flag.Parse()
+
+	gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent)
+
+	if !*fWatch {
+		return
+	}
+
+	//==================================
+	// File Watcher
+	//==================================
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal("NewWatcher failed: ", err)
+	}
+	defer watcher.Close()
+
+	fmt.Printf("watching..%v\n", *fDir)
+
+	done := make(chan bool)
+	go func() {
+		defer close(done)
+
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+
+				if event.Op == fsnotify.Create && event.Name[len(event.Name)-5:] != ".lock" {
+					log.Printf("%s\n", event.Name)
+					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent)
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.Println("error:", err)
+			}
+		}
+
+	}()
+
+	err = watcher.Add(fmt.Sprintf("%v/.git/refs/heads", *fDir))
+	if err != nil {
+		fmt.Println("no git repository")
+		return
+	}
+	err = watcher.Add(fmt.Sprintf("%v/.git/HEAD", *fDir))
+	if err != nil {
+		fmt.Println("no git repository")
+		return
+	}
+	<-done
+}
+
+func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool) {
 
 	//==================================
 	// Markdown Mermaid
