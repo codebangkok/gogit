@@ -78,18 +78,6 @@ func main() {
 		fmt.Println("no git repository")
 		return
 	}
-	// err = watcher.Add(fmt.Sprintf("%v/.git/HEAD", *fDir))
-	// if err != nil {
-	// 	fmt.Println("no git repository")
-	// 	return
-	// }
-	// if *fIndex {
-	// 	err = watcher.Add(fmt.Sprintf("%v/.git", *fDir))
-	// 	if err != nil {
-	// 		fmt.Println("no index")
-	// 		return
-	// 	}
-	// }
 	<-done
 }
 
@@ -141,7 +129,13 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 		}
 
 		for _, indexEntry := range index.Entries {
+
+			if indexEntry.Name == ".gitignore" {
+				continue
+			}
+
 			indexEntryHash := indexEntry.Hash.String()[:4]
+
 			if *fContent {
 				blob, err := repo.BlobObject(indexEntry.Hash)
 				if err != nil {
@@ -191,16 +185,17 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 		} else {
 			if *fBlob {
 				tree.Files().ForEach(func(f *object.File) error {
-					blobHash := f.Hash.String()[:4]
-
-					if *fContent {
-						content, err := f.Contents()
-						if err != nil {
-							return err
+					if f.Name != ".gitignore" {
+						blobHash := f.Hash.String()[:4]
+						if *fContent {
+							content, err := f.Contents()
+							if err != nil {
+								return err
+							}
+							markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, content))
+						} else {
+							markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v]\n", commitHash, commitHash, f.Name, blobHash, blobHash))
 						}
-						markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, content))
-					} else {
-						markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v]\n", commitHash, commitHash, f.Name, blobHash, blobHash))
 					}
 					return nil
 				})
@@ -267,6 +262,11 @@ func listTreeEntries(tree *object.Tree, markdown *os.File, fContent *bool) error
 			if err != nil {
 				return err
 			}
+
+			if file.Name == ".gitignore" {
+				continue
+			}
+
 			blobHash := file.Hash.String()[:4]
 
 			if *fContent {
