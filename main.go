@@ -128,7 +128,7 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 			return
 		}
 
-		if len(index.Cache.Entries) <= 0 {
+		if index.Cache == nil || len(index.Cache.Entries) <= 0 {
 			markdown.WriteString("style Index fill:#e3f542,stroke:#333,color:#000000\n")
 		}
 
