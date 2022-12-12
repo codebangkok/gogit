@@ -128,36 +128,44 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 			return
 		}
 
-		for _, indexEntry := range index.Entries {
+		if len(index.Cache.Entries) <= 0 {
+			markdown.WriteString("style Index fill:#e3f542,stroke:#333,color:#000000\n")
+		}
 
-			if indexEntry.Name == ".gitignore" {
-				continue
+		if *fBlob {
+			for _, indexEntry := range index.Entries {
+
+				if indexEntry.Name == ".gitignore" {
+					continue
+				}
+
+				indexEntryHash := indexEntry.Hash.String()[:4]
+
+				if *fContent {
+					blob, err := repo.BlobObject(indexEntry.Hash)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+
+					r, err := blob.Reader()
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+					content := new(strings.Builder)
+					_, err = io.Copy(content, r)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+					markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v %v]\n", indexEntry.Name, indexEntryHash, indexEntryHash, content))
+				} else {
+					markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v]\n", indexEntry.Name, indexEntryHash, indexEntryHash))
+				}
 			}
-
-			indexEntryHash := indexEntry.Hash.String()[:4]
-
-			if *fContent {
-				blob, err := repo.BlobObject(indexEntry.Hash)
-				if err != nil {
-					log.Fatal(err)
-					return
-				}
-				r, err := blob.Reader()
-				if err != nil {
-					log.Fatal(err)
-					return
-				}
-				content := new(strings.Builder)
-				_, err = io.Copy(content, r)
-				if err != nil {
-					log.Fatal(err)
-					return
-				}
-				markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v %v]\n", indexEntry.Name, indexEntryHash, indexEntryHash, content))
-			} else {
-				markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v]\n", indexEntry.Name, indexEntryHash, indexEntryHash))
-			}
-
+		} else {
+			markdown.WriteString("Index[(index)]\n")
 		}
 	} else {
 		_, err := repo.Head()
