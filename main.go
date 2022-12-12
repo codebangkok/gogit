@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-git/go-git/v5"
@@ -20,10 +22,11 @@ func main() {
 	var fHead = flag.Bool("head", false, "show head")
 	var fHistory = flag.Bool("history", false, "show commit history")
 	var fContent = flag.Bool("content", false, "show blob content")
-	var fWatch = flag.Bool("watch", false, "watch commit change")
+	var fIndex = flag.Bool("index", false, "show index,staging,cached")
+	var fWatch = flag.Bool("watch", false, "watching repo change")
 	flag.Parse()
 
-	gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent)
+	gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex)
 
 	if !*fWatch {
 		return
@@ -53,7 +56,7 @@ func main() {
 
 				if event.Op == fsnotify.Create && event.Name[len(event.Name)-5:] != ".lock" {
 					log.Printf("%s\n", event.Name)
-					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent)
+					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex)
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -70,15 +73,27 @@ func main() {
 		fmt.Println("no git repository")
 		return
 	}
-	err = watcher.Add(fmt.Sprintf("%v/.git/HEAD", *fDir))
+	err = watcher.Add(fmt.Sprintf("%v/.git", *fDir))
 	if err != nil {
 		fmt.Println("no git repository")
 		return
 	}
+	// err = watcher.Add(fmt.Sprintf("%v/.git/HEAD", *fDir))
+	// if err != nil {
+	// 	fmt.Println("no git repository")
+	// 	return
+	// }
+	// if *fIndex {
+	// 	err = watcher.Add(fmt.Sprintf("%v/.git", *fDir))
+	// 	if err != nil {
+	// 		fmt.Println("no index")
+	// 		return
+	// 	}
+	// }
 	<-done
 }
 
-func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool) {
+func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool, fIndex *bool) {
 
 	//==================================
 	// Markdown Mermaid
@@ -110,6 +125,53 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 		return
 	}
 	defer commiter.Close()
+
+	// Index
+	if *fIndex {
+
+		index, err := repo.Storer.Index()
+		if err != nil {
+			markdown.WriteString("empty((empty))\n")
+			return
+		}
+
+		if len(index.Entries) <= 0 {
+			markdown.WriteString("Index[(index)]\n")
+			return
+		}
+
+		for _, indexEntry := range index.Entries {
+			indexEntryHash := indexEntry.Hash.String()[:4]
+			if *fContent {
+				blob, err := repo.BlobObject(indexEntry.Hash)
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+				r, err := blob.Reader()
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+				content := new(strings.Builder)
+				_, err = io.Copy(content, r)
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+				markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v %v]\n", indexEntry.Name, indexEntryHash, indexEntryHash, content))
+			} else {
+				markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v]\n", indexEntry.Name, indexEntryHash, indexEntryHash))
+			}
+
+		}
+	} else {
+		_, err := repo.Head()
+		if err != nil {
+			markdown.WriteString("empty((empty))\n")
+			return
+		}
+	}
 
 	err = commiter.ForEach(func(c *object.Commit) error {
 
@@ -179,19 +241,22 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 		}
 	}
 
-	head, err := repo.Head()
-	if err != nil {
-		markdown.WriteString("empty((empty))\n")
-		return
-	}
-
+	// HEAD
 	if *fHead {
+		head, err := repo.Head()
+		if err != nil {
+			if !*fIndex {
+				markdown.WriteString("empty((empty))\n")
+			}
+			return
+		}
 		if head.Name().IsBranch() && *fBranch {
 			markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Name().Short()))
 		} else {
-			markdown.WriteString(fmt.Sprintf("HEAD{{%v}}-->%v\n", head.Name().Short(), head.Hash().String()[:4]))
+			markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Hash().String()[:4]))
 		}
 	}
+
 }
 
 func listTreeEntries(tree *object.Tree, markdown *os.File, fContent *bool) error {
