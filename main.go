@@ -21,7 +21,7 @@ func main() {
 	var fBranch = flag.Bool("branch", false, "show branch")
 	var fHead = flag.Bool("head", false, "show head")
 	var fHistory = flag.Bool("history", false, "show commit history")
-	var fContent = flag.Bool("content", false, "show blob content")
+	var fContent = flag.Bool("content", false, "show blob content (one line max 10 char)")
 	var fIndex = flag.Bool("index", false, "show index,staging,cached")
 	var fWatch = flag.Bool("watch", false, "watching repo change")
 	flag.Parse()
@@ -159,7 +159,9 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 						log.Fatal(err)
 						return
 					}
-					markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v %v]\n", indexEntry.Name, indexEntryHash, indexEntryHash, content))
+
+					contentText := TruncateString(content.String(), 10)
+					markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v %v]\n", indexEntry.Name, indexEntryHash, indexEntryHash, contentText))
 				} else {
 					markdown.WriteString(fmt.Sprintf("Index[(index)]--%v-->%v[%v]\n", indexEntry.Name, indexEntryHash, indexEntryHash))
 				}
@@ -200,7 +202,8 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 							if err != nil {
 								return err
 							}
-							markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, content))
+							contentText := TruncateString(content, 10)
+							markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v %v]\n", commitHash, commitHash, f.Name, blobHash, blobHash, contentText))
 						} else {
 							markdown.WriteString(fmt.Sprintf("%v(((%v)))--%v-->%v[%v]\n", commitHash, commitHash, f.Name, blobHash, blobHash))
 						}
@@ -283,7 +286,8 @@ func listTreeEntries(tree *object.Tree, markdown *os.File, fContent *bool) error
 				if err != nil {
 					return err
 				}
-				markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v %v]\n", treeHash, file.Name, blobHash, blobHash, content))
+				contentText := TruncateString(content, 10)
+				markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v %v]\n", treeHash, file.Name, blobHash, blobHash, contentText))
 			} else {
 				markdown.WriteString(fmt.Sprintf("%v--%v-->%v[%v]\n", treeHash, file.Name, blobHash, blobHash))
 			}
@@ -299,4 +303,24 @@ func listTreeEntries(tree *object.Tree, markdown *os.File, fContent *bool) error
 		}
 	}
 	return nil
+}
+
+func TruncateString(str string, length int) string {
+	if length <= 0 {
+		return ""
+	}
+
+	truncated := ""
+	count := 0
+	for _, char := range str {
+		if char == '\n' {
+			break
+		}
+		truncated += string(char)
+		count++
+		if count >= length {
+			break
+		}
+	}
+	return truncated
 }
