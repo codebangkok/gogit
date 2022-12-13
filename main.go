@@ -215,7 +215,7 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 		// Commit History
 		if *fHistory {
 			c.Parents().ForEach(func(c2 *object.Commit) error {
-				markdown.WriteString(fmt.Sprintf("%v(((%v)))-->%v(((%v)))\n", commitHash, commitHash, c2.Hash.String()[:4], c2.Hash.String()[:4]))
+				markdown.WriteString(fmt.Sprintf("%v(((%v)))-.->%v(((%v)))\n", commitHash, commitHash, c2.Hash.String()[:4], c2.Hash.String()[:4]))
 				return nil
 			})
 		}
