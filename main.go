@@ -54,7 +54,7 @@ func main() {
 					return
 				}
 
-				if event.Op == fsnotify.Create && event.Name[len(event.Name)-5:] != ".lock" {
+				if event.Op == fsnotify.Create && event.Name[len(event.Name)-5:] != ".lock" && event.Name[len(event.Name)-14:] != "COMMIT_EDITMSG" && event.Name[len(event.Name)-4:] != "logs" && event.Name[len(event.Name)-9:] != "ORIG_HEAD" {
 					log.Printf("%s\n", event.Name)
 					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex)
 				}
