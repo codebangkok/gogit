@@ -85,18 +85,20 @@ func main() {
 		return
 	}
 
-	repo, err := git.PlainOpen(*fDir)
-	if err != nil {
-		fmt.Println("no repository")
-		return
-	}
-
-	remotes, err := repo.Remotes()
-	for _, remote := range remotes {
-		watcher.Add(fmt.Sprintf("%v/.git/refs/remotes/%v", *fDir, remote.Config().Name))
+	if *fRemote {
+		repo, err := git.PlainOpen(*fDir)
 		if err != nil {
-			fmt.Println("no remote repository")
+			fmt.Println("no repository")
 			return
+		}
+
+		remotes, err := repo.Remotes()
+		for _, remote := range remotes {
+			watcher.Add(fmt.Sprintf("%v/.git/refs/remotes/%v", *fDir, remote.Config().Name))
+			if err != nil {
+				fmt.Println("no remote repository")
+				return
+			}
 		}
 	}
 
@@ -138,7 +140,7 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 
 	err = GenerateIndex(repo, markdown, fIndex, fBlob, fContent)
 	if err != nil {
-		log.Fatalf("GenerateIndex: %v", err)
+		return
 	}
 
 	err = commiter.ForEach(func(c *object.Commit) error {
@@ -321,6 +323,8 @@ func GenerateHead(repo *git.Repository, markdown *os.File, fHead *bool, fIndex *
 func GenerateRemote(repo *git.Repository, markdown *os.File, fRemote *bool, fTree *bool, fBlob *bool, fContent *bool, fHistory *bool) error {
 	if *fRemote {
 
+		// _, headErr := repo.Head()
+
 		remotes, err := repo.Remotes()
 		if err != nil {
 			return err
@@ -347,6 +351,17 @@ func GenerateRemote(repo *git.Repository, markdown *os.File, fRemote *bool, fTre
 				}
 				commitHash := server.Hash().String()[:4]
 				markdown.WriteString(fmt.Sprintf("%v%v[[%v]]-->%v(((%v)))\n", remote.Config().Name, server.Name().Short(), server.Name().Short(), commitHash, commitHash))
+
+				// _ = headErr
+				// if headErr != nil {
+				// 	commiter, _ := repo.CommitObjects()
+				// 	commiter.ForEach(func(c *object.Commit) error {
+				// 		GenerateTree(c, markdown, fTree, fBlob, fContent, fHistory)
+				// 		return nil
+				// 	})
+
+				// }
+
 			}
 		}
 
