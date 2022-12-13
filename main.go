@@ -253,6 +253,7 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 			}
 			return
 		}
+		markdown.WriteString("style HEAD fill:#266e38,stroke:#333,color:#ffffff\n")
 		if head.Name().IsBranch() && *fBranch {
 			markdown.WriteString(fmt.Sprintf("HEAD{{HEAD}}-->%v\n", head.Name().Short()))
 		} else {
