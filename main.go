@@ -24,10 +24,11 @@ func main() {
 	var fContent = flag.Bool("content", false, "show blob content (one line max 10 char)")
 	var fIndex = flag.Bool("index", false, "show index,staging,cached")
 	var fRemote = flag.Bool("remote", false, "show remote")
+	var fTag = flag.Bool("tag", false, "show tag")
 	var fWatch = flag.Bool("watch", false, "watching repo change")
 	flag.Parse()
 
-	gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex, fRemote)
+	gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex, fRemote, fTag)
 
 	if !*fWatch {
 		return
@@ -62,7 +63,7 @@ func main() {
 
 				if event.Op == fsnotify.Create && !isLock && !isLogs && !isCommitEditMsg && !isOrigHead {
 					log.Printf("%s\n", event.Name)
-					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex, fRemote)
+					gogit(fDir, fTree, fBlob, fBranch, fHead, fHistory, fContent, fIndex, fRemote, fTag)
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -105,7 +106,7 @@ func main() {
 	<-done
 }
 
-func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool, fIndex *bool, fRemote *bool) {
+func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool, fIndex *bool, fRemote *bool, fTag *bool) {
 
 	//==================================
 	// Markdown Mermaid
@@ -158,10 +159,40 @@ func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, f
 
 	GenerateRemote(repo, markdown, fRemote, fTree, fBlob, fContent, fHistory)
 
+	GenerateTag(repo, markdown, fTag)
+
 	GenerateHead(repo, markdown, fHead, fIndex, fBranch)
 	if err != nil {
 		return
 	}
+}
+
+func GenerateTag(repo *git.Repository, markdown *os.File, fTag *bool) error {
+	if *fTag {
+		tag, err := repo.Tags()
+		if err != nil {
+			return err
+		}
+
+		tag.ForEach(func(r *plumbing.Reference) error {
+			tagHash := r.Hash().String()[:4]
+			tagObject, err := repo.TagObject(r.Hash())
+
+			if err != nil {
+				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v[%v]\n", r.Name().Short(), r.Name().Short(), tagHash, tagHash))
+			} else {
+				commit, err := tagObject.Commit()
+				if err != nil {
+					return err
+				}
+				commitHash := commit.Hash.String()[:4]
+				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v[%v]\n", r.Name().Short(), r.Name().Short(), commitHash, commitHash))
+			}
+			markdown.WriteString(fmt.Sprintf("style %v fill:#842191,stroke:#333,color:#ffffff\n", r.Name().Short()))
+			return nil
+		})
+	}
+	return nil
 }
 
 func GenerateTree(commit *object.Commit, markdown *os.File, fTree *bool, fBlob *bool, fContent *bool, fHistory *bool) error {
@@ -291,6 +322,7 @@ func GenerateBranch(repo *git.Repository, markdown *os.File, fBranch *bool) erro
 		}
 		err = branches.ForEach(func(r *plumbing.Reference) error {
 			markdown.WriteString(fmt.Sprintf("%v[[%v]]-->%v\n", r.Name().Short(), r.Name().Short(), r.Hash().String()[:4]))
+			markdown.WriteString(fmt.Sprintf("style %v fill:#213891,stroke:#333,color:#ffffff\n", r.Name().Short()))
 			return nil
 		})
 		if err != nil {
