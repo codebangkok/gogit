@@ -321,7 +321,8 @@ func GenerateBranch(repo *git.Repository, markdown *os.File, fBranch *bool) erro
 			return err
 		}
 		err = branches.ForEach(func(r *plumbing.Reference) error {
-			markdown.WriteString(fmt.Sprintf("%v[[%v]]-->%v\n", r.Name().Short(), r.Name().Short(), r.Hash().String()[:4]))
+			branchHash := r.Hash().String()[:4]
+			markdown.WriteString(fmt.Sprintf("%v[[%v]]-->%v(((%v)))\n", r.Name().Short(), r.Name().Short(), branchHash, branchHash))
 			markdown.WriteString(fmt.Sprintf("style %v fill:#213891,stroke:#cccccc,color:#ffffff\n", r.Name().Short()))
 			return nil
 		})
