@@ -86,6 +86,14 @@ func main() {
 		return
 	}
 
+	if *fTag {
+		err = watcher.Add(fmt.Sprintf("%v/.git/refs/tags", *fDir))
+		if err != nil {
+			fmt.Println("no git repository")
+			return
+		}
+	}
+
 	if *fRemote {
 		repo, err := git.PlainOpen(*fDir)
 		if err != nil {
@@ -179,14 +187,14 @@ func GenerateTag(repo *git.Repository, markdown *os.File, fTag *bool) error {
 			tagObject, err := repo.TagObject(r.Hash())
 
 			if err != nil {
-				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v[%v]\n", r.Name().Short(), r.Name().Short(), tagHash, tagHash))
+				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v(((%v)))\n", r.Name().Short(), r.Name().Short(), tagHash, tagHash))
 			} else {
 				commit, err := tagObject.Commit()
 				if err != nil {
 					return err
 				}
 				commitHash := commit.Hash.String()[:4]
-				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v[%v]\n", r.Name().Short(), r.Name().Short(), commitHash, commitHash))
+				markdown.WriteString(fmt.Sprintf("%v>%v]-.->%v(((%v)))\n", r.Name().Short(), r.Name().Short(), commitHash, commitHash))
 			}
 			markdown.WriteString(fmt.Sprintf("style %v fill:#842191,stroke:#333,color:#ffffff\n", r.Name().Short()))
 			return nil
@@ -207,7 +215,7 @@ func GenerateTree(commit *object.Commit, markdown *os.File, fTree *bool, fBlob *
 		markdown.WriteString(fmt.Sprintf("%v(((%v)))-->%v{%v}\n", commitHash, commitHash, treeHash, treeHash))
 
 		if *fBlob {
-			return GenerateTreeEntries(tree, markdown, fContent)
+			GenerateTreeEntries(tree, markdown, fContent)
 		}
 	} else {
 		if *fBlob {
