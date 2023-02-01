@@ -75,11 +75,17 @@ func main() {
 
 	}()
 
-	err = watcher.Add(fmt.Sprintf("%v/.git/refs/heads", *fDir))
+	// err = watcher.Add(fmt.Sprintf("%v/.git/refs/heads", *fDir))
+	// if err != nil {
+	// 	fmt.Println("no git repository")
+	// 	return
+	// }
+	err = WatchPath(watcher, fmt.Sprintf("%v/.git/refs/heads", *fDir))
 	if err != nil {
-		fmt.Println("no git repository")
+		fmt.Println(err)
 		return
 	}
+
 	err = watcher.Add(fmt.Sprintf("%v/.git", *fDir))
 	if err != nil {
 		fmt.Println("no git repository")
@@ -102,16 +108,43 @@ func main() {
 		}
 
 		remotes, err := repo.Remotes()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 		for _, remote := range remotes {
-			watcher.Add(fmt.Sprintf("%v/.git/refs/remotes/%v", *fDir, remote.Config().Name))
+			// watcher.Add(fmt.Sprintf("%v/.git/refs/remotes/%v", *fDir, remote.Config().Name))
+			// if err != nil {
+			// 	fmt.Println("no remote repository")
+			// 	return
+			// }
+			err = WatchPath(watcher, fmt.Sprintf("%v/.git/refs/remotes/%v", *fDir, remote.Config().Name))
 			if err != nil {
-				fmt.Println("no remote repository")
+				fmt.Println(err)
 				return
 			}
 		}
 	}
 
 	<-done
+}
+
+func WatchPath(watcher *fsnotify.Watcher, path string) error {
+	err := watcher.Add(path)
+	if err != nil {
+		return err
+	}
+	dirs, _ := os.ReadDir(path)
+	for _, dir := range dirs {
+		if dir.IsDir() {
+			path := fmt.Sprintf("%v/%v", path, dir.Name())
+			err = WatchPath(watcher, path)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func gogit(fDir *string, fTree *bool, fBlob *bool, fBranch *bool, fHead *bool, fHistory *bool, fContent *bool, fIndex *bool, fRemote *bool, fTag *bool) {
