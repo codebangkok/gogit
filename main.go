@@ -138,10 +138,7 @@ func WatchPath(watcher *fsnotify.Watcher, path string) error {
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			path := fmt.Sprintf("%v/%v", path, dir.Name())
-			err = WatchPath(watcher, path)
-			if err != nil {
-				return err
-			}
+			WatchPath(watcher, path)
 		}
 	}
 	return nil
